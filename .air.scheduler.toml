@@ -1,0 +1,15 @@
+[build]
+  cmd = "go build -o ./tmp/scheduler ./cmd/scheduler/main.go"
+  bin = "./tmp/scheduler"
+  full_bin = "./tmp/scheduler"
+  log = "air.quscheduler"
+
+[log]
+  level = "debug"
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "blue"
+  app = "magenta"

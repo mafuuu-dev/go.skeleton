@@ -1,0 +1,9 @@
+/.idea
+/.vscode
+
+/tmp
+
+.env*
+!.env.example
+
+**/.DS_Store

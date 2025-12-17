@@ -1,0 +1,174 @@
+networks:
+  gateway:
+    name: "${COMPOSE_PROJECT_NAME}-gateway"
+  internal:
+    name: "${COMPOSE_PROJECT_NAME}-internal"
+
+volumes:
+  pgsql-data:
+  redis-data:
+
+x-template: &template
+  restart: on-failure
+  env_file:
+    - .docker/.env
+    - .docker/traefik/.env
+    - .docker/nginx/.env
+    - .docker/pgsql/.env
+    - .docker/redis/.env
+    - .docker/go/.env
+    - .docker/centrifugo/.env
+  logging:
+    driver: 'json-file'
+    options:
+      max-file: '5'
+      max-size: '2m'
+      labels: '${COMPOSE_PROJECT_NAME}-log'
+
+x-internal: &internal
+  <<: *template
+  networks:
+    - internal
+
+x-mesh: &mesh
+  <<: *template
+  networks:
+    - internal
+    - gateway
+
+x-app: &app
+  <<: *internal
+  build: .
+  volumes:
+    - ./:/app:rw
+  depends_on:
+    centrifugo:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    pgsql:
+      condition: service_healthy
+
+services:
+  scheduler:
+    <<: *app
+    environment:
+      - SERVICE=scheduler
+
+  server:
+    <<: *app
+    environment:
+      - SERVICE=server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT}/api/v1/maintenance/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 40
+
+  centrifugo:
+    <<: *internal
+    image: centrifugo/centrifugo:v6.4
+    volumes:
+      - ./.docker/centrifugo/configs/config.json:/configs/config.json:ro
+    command: >
+      centrifugo
+      --config /configs/config.json
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${SOCKET_PORT}/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 20
+
+  nginx:
+    <<: *mesh
+    image: nginx:1.29.3-alpine3.22-slim
+    volumes:
+      - ./.docker/nginx/security/limits:/etc/security/limits.conf
+      - ./.docker/nginx/configs/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./.docker/nginx/templates/api.vhost.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./.docker/nginx/templates/centrifugo.vhost.conf:/etc/nginx/templates/centrifugo.conf.template:ro
+    depends_on:
+      centrifugo:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME}-gateway"
+      - "traefik.http.routers.server.entrypoints=web"
+      - "traefik.http.routers.server.rule=Host(`api.${HOST}`)"
+      - "traefik.http.routers.server.service=server-svc"
+      - "traefik.http.services.server-svc.loadbalancer.server.port=${PORT}"
+      - "traefik.http.routers.socket.entrypoints=web"
+      - "traefik.http.routers.socket.rule=Host(`socket.${HOST}`)"
+      - "traefik.http.routers.socket.service=socket-svc"
+      - "traefik.http.services.socket-svc.loadbalancer.server.port=${PORT}"
+
+  pgsql:
+    <<: *mesh
+    image: postgres:18.0-alpine3.22
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME}-gateway"
+      - "traefik.tcp.routers.pgsql.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.pgsql.entrypoints=pgsql"
+      - "traefik.tcp.routers.pgsql.service=pgsql-svc"
+      - "traefik.tcp.services.pgsql-svc.loadbalancer.server.port=5432"
+
+  redis:
+    <<: *mesh
+    image: redis:8.2.3-alpine3.22
+    volumes:
+      - redis-data:/data:rw
+    command: >
+      redis-server
+      --appendonly no
+      --appendfsync everysec
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME}-gateway"
+      - "traefik.tcp.routers.redis.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.redis.entrypoints=redis"
+      - "traefik.tcp.routers.redis.service=redis-svc"
+      - "traefik.tcp.services.redis-svc.loadbalancer.server.port=6379"
+
+  traefik:
+    <<: *mesh
+    image: traefik:v3.6.2
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - '5432:5432'
+      - '6379:6379'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.docker/traefik/configs/traefik.yml:/etc/traefik/traefik.yml:ro
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    depends_on:
+      - nginx
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME}-gateway"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${HOST}`)"
+      - "traefik.http.routers.traefik.service=api@internal"

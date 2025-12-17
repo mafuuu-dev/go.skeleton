@@ -1,0 +1,15 @@
+[build]
+  cmd = "go build -o ./tmp/server ./cmd/server/main.go"
+  bin = "./tmp/server"
+  full_bin = "./tmp/server"
+  log = "air.server.log"
+
+[log]
+  level = "debug"
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "blue"
+  app = "magenta"

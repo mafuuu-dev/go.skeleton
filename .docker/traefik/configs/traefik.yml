@@ -1,0 +1,23 @@
+log:
+  level: DEBUG
+  format: json
+
+api:
+  insecure: false
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+  pgsql:
+    address: ":5432"
+  redis:
+    address: ":6379"
+
+providers:
+  docker:
+    watch: true
+    exposedByDefault: false
+    endpoint: "unix:///var/run/docker.sock"

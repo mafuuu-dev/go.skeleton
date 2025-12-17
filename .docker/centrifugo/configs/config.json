@@ -1,0 +1,31 @@
+{
+  "health": {
+    "enabled": true
+  },
+  "engine": {
+    "type": "redis"
+  },
+  "client": {
+    "history_max_publication_limit": 10000,
+    "recovery_max_publication_limit": 10000
+  },
+  "channel": {
+    "without_namespace": {
+      "history_size": 0,
+      "presence": false,
+      "allow_subscribe_for_client": true,
+      "allow_subscribe_for_anonymous": false
+    },
+    "namespaces": [
+      {
+        "name": "test",
+        "history_size": 500,
+        "history_ttl": "360s",
+        "presence": false,
+        "allow_history_for_subscriber": true,
+        "allow_subscribe_for_client": true,
+        "allow_subscribe_for_anonymous": false
+      }
+    ]
+  }
+}

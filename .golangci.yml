@@ -1,0 +1,47 @@
+version: "2"
+
+linters:
+  settings:
+    lll:
+      line-length: 120
+    gosec:
+      severity: high
+      confidence: high
+      config:
+        global:
+          nosec: false
+          show-ignored: false
+
+  enable:
+    - errname
+    - govet
+    - staticcheck
+    - gosec
+    - errcheck
+    - ineffassign
+    - unused
+    - misspell
+    - asciicheck
+    - dogsled
+    - nakedret
+    - nolintlint
+    - copyloopvar
+    - gocyclo
+    - nestif
+    - gocognit
+    - goconst
+    - lll
+
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true
+    tab:
+      path: stdout
+      print-linter-name: true
+      colors: true
+
+run:
+  timeout: 2m
+  tests: true
