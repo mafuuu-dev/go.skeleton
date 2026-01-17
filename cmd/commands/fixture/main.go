@@ -15,9 +15,9 @@ import (
 func main() {
 	log.Println("Running seed migrations...")
 
-	cfg := config.Load(constants.ServiceServer)
+	cfg := config.Load(constants.ServiceScheduler)
 	if err := runSeedMigrations(cfg); err != nil {
-		log.Fatalf("%s", errorsx.JSONTrace(errorsx.Errorf("Failed to run seed migrations: %v", err)))
+		log.Fatal(errorsx.WrapJSON(err, "Failed to run seed migrations"))
 	}
 
 	log.Println("Done.")
@@ -26,23 +26,23 @@ func main() {
 func runSeedMigrations(cfg *config.Config) error {
 	db, err := sql.Open("postgres", postgresDsn(cfg))
 	if err != nil {
-		return errorsx.Error(err)
+		return errorsx.Wrap(err, "Failed to open postgres connection")
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{
 		MigrationsTable: "schema_seeds",
 	})
 	if err != nil {
-		return errorsx.Error(err)
+		return errorsx.Wrap(err, "Failed to create postgres driver")
 	}
 
 	m, err := migrate.NewWithDatabaseInstance("file://db/seeds", "postgres", driver)
 	if err != nil {
-		return errorsx.Error(err)
+		return errorsx.Wrap(err, "Failed to create migrate instance")
 	}
 
 	if err := m.Down(); err != nil {
-		log.Printf("%s", errorsx.JSONTrace(errorsx.Errorf("Warning: down failed: %v", err)))
+		log.Println(errorsx.WrapJSON(err, "Warning: down failed"))
 	}
 
 	_, _ = db.Exec(`TRUNCATE TABLE schema_seeds RESTART IDENTITY`)

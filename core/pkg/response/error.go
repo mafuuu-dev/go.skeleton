@@ -24,11 +24,6 @@ func Error(c *fiber.Ctx, err string, code int) error {
 }
 
 func NotValidRequest(c *fiber.Ctx, scope *scope.Scope, err error) error {
-	scope.Log.Warnf(errorsx.EnrichTrace(errorsx.JSONTrace(
-		errorsx.Errorf("Request validation error: %v", err)),
-		http.StatusUnprocessableEntity,
-		err.Error(),
-	))
-
+	scope.Log.Warn(errorsx.WrapJSON(err, "Request validation error"))
 	return Error(c, string(constants.UnprocessableEntityError), http.StatusUnprocessableEntity)
 }

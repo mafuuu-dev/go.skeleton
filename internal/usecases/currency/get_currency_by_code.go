@@ -30,7 +30,7 @@ func NewGetCurrencyByCode(scope *scope.Scope) *GetCurrencyByCode {
 func (u *GetCurrencyByCode) Get(code currency_enum.Code) (*currency_entity.Currency, error) {
 	currency, err := u.repositories.Currency.GetCurrencyByCode(code)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to get currency by code")
 	}
 
 	return currency, nil

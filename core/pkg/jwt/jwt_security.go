@@ -21,7 +21,7 @@ func NewSecurity(cfg *config.Config) *Security {
 
 func (security *Security) Encode(payload string) (string, error) {
 	if len(payload) == 0 {
-		return "", errorsx.Errorf("Cannot encrypt empty string")
+		return "", errorsx.New("Cannot encrypt empty string")
 	}
 
 	encoderKey := security.serverSecretKey
@@ -36,12 +36,12 @@ func (security *Security) Encode(payload string) (string, error) {
 		nil,
 	)
 	if err != nil {
-		return "", errorsx.Errorf("Failed to create encrypter: %v", err)
+		return "", errorsx.Wrap(err, "Failed to create encrypter")
 	}
 
 	obj, err := enc.Encrypt([]byte(payload))
 	if err != nil {
-		return "", errorsx.Errorf("Failed to encrypt token: %v", err)
+		return "", errorsx.Wrap(err, "Failed to encrypt token")
 	}
 
 	return obj.CompactSerialize()
@@ -49,12 +49,12 @@ func (security *Security) Encode(payload string) (string, error) {
 
 func (security *Security) Decode(token string) (jwt.MapClaims, error) {
 	if len(token) == 0 {
-		return nil, errorsx.Errorf("Empty encoded token")
+		return nil, errorsx.New("Empty encoded token")
 	}
 
 	obj, err := jose.ParseEncrypted(token)
 	if err != nil {
-		return nil, errorsx.Errorf("Failed to parse encrypted token: %v", err)
+		return nil, errorsx.Wrap(err, "Failed to parse encrypted token")
 	}
 
 	decoderKey := security.serverSecretKey
@@ -65,17 +65,17 @@ func (security *Security) Decode(token string) (jwt.MapClaims, error) {
 
 	decryptedToken, err := obj.Decrypt(decoderKey)
 	if err != nil {
-		return nil, errorsx.Errorf("Failed to decrypt token: %v", err)
+		return nil, errorsx.Wrap(err, "Failed to decrypt token")
 	}
 
 	tokenParsed, _, err := new(jwt.Parser).ParseUnverified(string(decryptedToken), jwt.MapClaims{})
 	if err != nil {
-		return nil, errorsx.Errorf("Failed to parse decrypted JWT: %v", err)
+		return nil, errorsx.Wrap(err, "Failed to parse decrypted JWT")
 	}
 
 	claims, ok := tokenParsed.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errorsx.Errorf("Failed to extract claims from decrypted JWT")
+		return nil, errorsx.New("Failed to extract claims from decrypted JWT")
 	}
 
 	return claims, nil

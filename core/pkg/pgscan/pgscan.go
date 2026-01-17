@@ -20,7 +20,7 @@ func Scan[T any](source any, mapRow func(Scannable) (T, error)) ([]T, error) {
 		for s.Next() {
 			item, err := mapRow(s)
 			if err != nil {
-				return nil, errorsx.Error(err)
+				return nil, errorsx.Wrap(err, "Error scanning row")
 			}
 
 			result = append(result, item)
@@ -35,20 +35,20 @@ func Scan[T any](source any, mapRow func(Scannable) (T, error)) ([]T, error) {
 				return nil, nil
 			}
 
-			return nil, errorsx.Error(err)
+			return nil, errorsx.Wrap(err, "Error scanning row")
 		}
 
 		return []T{item}, nil
 
 	default:
-		return nil, errorsx.Errorf("Unsupported input type for Scan")
+		return nil, errorsx.New("Unsupported input type for Scan")
 	}
 }
 
 func ScanOne[T any](row pgx.Row, mapRow func(Scannable) (T, error)) (*T, error) {
 	results, err := Scan(row, mapRow)
 	if err != nil || len(results) == 0 {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Error scanning row")
 	}
 
 	return &results[0], nil

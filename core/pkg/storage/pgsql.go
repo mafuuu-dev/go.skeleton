@@ -12,7 +12,7 @@ import (
 func ConnectPostgres(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to parse postgres dsn")
 	}
 
 	cfg.MaxConns = 100
@@ -23,12 +23,12 @@ func ConnectPostgres(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to create postgres pool")
 	}
 
 	err = pool.Ping(ctx)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to ping postgres")
 	}
 
 	return pool, nil

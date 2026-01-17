@@ -44,14 +44,14 @@ func (s *Presence) GetFrom(channel types.ChannelName) map[string]PresenceClient 
 
 	request, err := s.centrifugo.Request(ctx, payload)
 	if err != nil {
-		s.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Error creating request: %v", err)))
+		s.log.Warn(errorsx.WrapfJSON(err, "Failed to create request for channel %s", channel))
 		return nil
 	}
 
 	response, err := s.centrifugo.Send(request)
 	if err != nil {
 		s.centrifugo.CloseSend(response)
-		s.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Error sending request: %v", err)))
+		s.log.Warn(errorsx.WrapfJSON(err, "Failed to send request for channel %s", channel))
 		return nil
 	}
 
@@ -63,7 +63,7 @@ func (s *Presence) GetFrom(channel types.ChannelName) map[string]PresenceClient 
 
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
 		s.centrifugo.CloseSend(response)
-		s.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Error decoding response: %v", err)))
+		s.log.Warn(errorsx.WrapfJSON(err, "Failed to decode response for channel %s", channel))
 		return nil
 	}
 

@@ -27,7 +27,7 @@ func (g *Group) Go(fn func()) {
 
 		defer func() {
 			if r := recover(); r != nil {
-				g.log.Warnf(errorsx.JSONTrace(errorsx.Panic(r)))
+				g.log.Warn(errorsx.Recover(r).(*errorsx.Error).ToJSON())
 				time.Sleep(5 * time.Second)
 
 				g.Go(fn)

@@ -17,7 +17,7 @@ func NewRevokeExpiredTokens(factory *query.Factory) *RevokeExpiredTokens {
 
 func (q *RevokeExpiredTokens) Execute() error {
 	_, err := q.Exec(q)
-	return errorsx.Error(err)
+	return errorsx.Wrap(err, "failed to revoke expired tokens")
 }
 
 func (q *RevokeExpiredTokens) Sql() string {

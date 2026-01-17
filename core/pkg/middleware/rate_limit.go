@@ -19,9 +19,9 @@ func RateLimit(scope *scope.Scope, limit types.RateLimitType) fiber.Handler {
 			return scope.Config.Environment.IsDevelopment()
 		},
 		KeyGenerator: func(c *fiber.Ctx) string {
-			userID := c.Locals("user_id")
-			if userID != nil {
-				return fmt.Sprintf("%v", userID)
+			playerID := c.Locals("player_id")
+			if playerID != nil {
+				return fmt.Sprintf("%v", playerID)
 			}
 
 			return c.IP()

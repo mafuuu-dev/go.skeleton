@@ -27,7 +27,7 @@ func NewRevokeTokens(scope *scope.Scope) *RevokeTokens {
 
 func (s *RevokeTokens) Run() {
 	if err := s.repositories.Token.RevokeExpiredTokens(); err != nil {
-		s.scope.Log.Warnf("Error revoke expired tokens: %v", errorsx.JSONTrace(err))
+		s.scope.Log.Warn(errorsx.WrapfJSON(err, "Error revoke expired tokens"))
 		return
 	}
 

@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -68,20 +67,21 @@ func (centrifugo *Centrifugo) Publish(channel types.Channel, data any) {
 		Data:    data,
 	}:
 	default:
-		centrifugo.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Socket publish queue full, dropping message")))
+		centrifugo.log.Warn(errorsx.New("Socket publish queue full, dropping message").(*errorsx.Error).ToJSON())
 	}
 }
 
 func (centrifugo *Centrifugo) Request(ctx context.Context, payload map[string]any) (*http.Request, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		centrifugo.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Marshal error: %v", err)))
-		return nil, errorsx.Error(err)
+		e := errorsx.Wrap(err, "Failed to marshal request payload")
+		centrifugo.log.Warn(e.(*errorsx.Error).ToJSON())
+		return nil, e
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, centrifugo.apiUrl(), bytes.NewReader(body))
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to create request")
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -93,11 +93,11 @@ func (centrifugo *Centrifugo) Request(ctx context.Context, payload map[string]an
 func (centrifugo *Centrifugo) Send(request *http.Request) (*http.Response, error) {
 	response, err := centrifugo.client.Do(request)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to send request")
 	}
 
-	if response.StatusCode >= 400 {
-		return nil, errors.New("Centrifugo API error: " + response.Status)
+	if response.StatusCode >= http.StatusBadRequest {
+		return nil, errorsx.Newf("Centrifugo API error: %s", response.Status)
 	}
 
 	return response, nil
@@ -106,7 +106,7 @@ func (centrifugo *Centrifugo) Send(request *http.Request) (*http.Response, error
 func (centrifugo *Centrifugo) CloseSend(response *http.Response) {
 	defer func(body io.ReadCloser) {
 		if err := body.Close(); err != nil {
-			centrifugo.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Failed to close response body: %v", err)))
+			centrifugo.log.Warn(errorsx.WrapJSON(err, "Failed to close response body"))
 		}
 	}(response.Body)
 }
@@ -178,18 +178,14 @@ func (centrifugo *Centrifugo) publishSync(publishRequest PublishRequest) {
 
 	request, err := centrifugo.Request(ctx, payload)
 	if err != nil {
-		centrifugo.log.Warnf(errorsx.JSONTrace(
-			errorsx.Errorf("Request build error for channel %s: %v", publishRequest.Channel, err),
-		))
+		centrifugo.log.Warn(errorsx.WrapfJSON(err, "Failed to build request for channel %s", publishRequest.Channel))
 
 		return
 	}
 
 	response, err := centrifugo.Send(request)
 	if err != nil {
-		centrifugo.log.Warnf(errorsx.JSONTrace(
-			errorsx.Errorf("Request send error for channel %s: %v", publishRequest.Channel, err),
-		))
+		centrifugo.log.Warn(errorsx.WrapfJSON(err, "Failed to send request for channel %s", publishRequest))
 		return
 	}
 

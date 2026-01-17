@@ -23,7 +23,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) *Stora
 
 	database, err := Connect(timeoutCtx, cfg)
 	if err != nil {
-		log.Warnf(errorsx.JSONTrace(errorsx.Error(err)))
+		log.Warn(errorsx.WrapJSON(err, "Failed to connect to storage"))
 	}
 
 	return database
@@ -32,13 +32,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) *Stora
 func Connect(ctx context.Context, cfg *config.Config) (*Storage, error) {
 	postgresClient, err := ConnectPostgres(ctx, PostgresDsn(cfg))
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to connect to postgres")
 	}
 
 	redisClient, err := ConnectRedis(ctx, RedisDsn(cfg))
 	if err != nil {
 		postgresClient.Close()
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to connect to redis")
 	}
 
 	return &Storage{

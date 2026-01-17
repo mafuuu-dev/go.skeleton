@@ -20,9 +20,9 @@ func NewJWT(cfg *config.Config) *JWT {
 	}
 }
 
-func (j *JWT) GenerateJWTForServer(userID int64, accountID int64, currencyCode string) (string, error) {
+func (j *JWT) GenerateJWTForServer(playerID int64, accountID int64, currencyCode string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":       userID,
+		"user_id":       playerID,
 		"account_id":    accountID,
 		"currency_code": currencyCode,
 		"exp":           time.Now().Add(time.Hour * 24).Unix(),
@@ -31,9 +31,9 @@ func (j *JWT) GenerateJWTForServer(userID int64, accountID int64, currencyCode s
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(j.serverSecretKey)
 }
 
-func (j *JWT) GenerateJWTForSocket(userID int64) (string, error) {
+func (j *JWT) GenerateJWTForSocket(playerID int64) (string, error) {
 	claims := jwt.MapClaims{
-		"sub": strconv.FormatInt(userID, 10),
+		"sub": strconv.FormatInt(playerID, 10),
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
 	}
 

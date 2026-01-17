@@ -32,7 +32,7 @@ func Start(cfg *config.Config) {
 
 	defer func() {
 		if err := database.Redis.Close(); err != nil {
-			log.Warnf("Redis disconnect error: %v", errorsx.JSONTrace(errorsx.Error(err)))
+			log.Warn(errorsx.WrapJSON(err, "Redis disconnect error"))
 		}
 	}()
 

@@ -27,24 +27,23 @@ func New(ctx context.Context, db *pgxpool.Pool, log *zap.SugaredLogger) *UnitOfW
 func (u *UnitOfWork) Do(fn func(tx pgx.Tx) error) error {
 	tx, err := u.db.Begin(u.ctx)
 	if err != nil {
-		return errorsx.Error(err)
+		return errorsx.Wrap(err, "Failed to begin transaction")
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			_ = tx.Rollback(u.ctx)
 
-			u.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Panic recovered in UnitOfWork: %v", r)))
-			panic(r)
+			panic(errorsx.Wrap(errorsx.Recover(r), "Panic recovered in UnitOfWork"))
 		}
 
 		if err := tx.Rollback(u.ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			u.log.Warnf(errorsx.JSONTrace(errorsx.Errorf("Rollback failed: %v", err)))
+			u.log.Warn(errorsx.WrapJSON(err, "Rollback failed"))
 		}
 	}()
 
 	if err := fn(tx); err != nil {
-		return errorsx.Error(err)
+		return errorsx.Wrap(err, "Failed to execute transaction")
 	}
 
 	return tx.Commit(u.ctx)

@@ -38,12 +38,12 @@ func (h *GetCurrencyHandler) Handle() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		model := &getCurrencyHandler{}
 		if ok, err := h.Validator().Validate(c, model); !ok {
-			return errorsx.Error(err)
+			return errorsx.Wrap(err, "Error parsing request body")
 		}
 
 		currency, err := currency_usecase.NewGetCurrencyByCode(h.SC()).Get(currency_enum.Code(model.Code))
 		if err != nil {
-			return errorsx.Humanf(err, internal_constants.GetCurrencyByCodeError, http.StatusBadRequest)
+			return errorsx.WrapHuman(err, internal_constants.GetCurrencyByCodeError, http.StatusBadRequest)
 		}
 
 		return response.Success(c, currency)

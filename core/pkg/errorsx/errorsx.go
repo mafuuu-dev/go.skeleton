@@ -1,119 +1,87 @@
 package errorsx
 
 import (
-	"bytes"
-	"fmt"
+	"backend/core/types"
+	"encoding/json"
+	"net/http"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
-	"strconv"
-	"strings"
-
-	"github.com/pkg/errors"
 )
 
-type Frame struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-	Msg  string `json:"msg"`
+type StackFrame struct {
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+	IsHuman bool   `json:"is_human,omitempty"`
 }
 
-type TraceError struct {
-	Root  Frame   `json:"root"`
-	Trace []Frame `json:"trace"`
+type Error struct {
+	stack      []StackFrame
+	humanCode  string
+	httpStatus int
 }
 
-func (e *TraceError) Error() string {
-	return e.Root.Msg
+func (e *Error) Error() string {
+	if e.humanCode != "" {
+		return e.humanCode
+	}
+	if len(e.stack) > 0 {
+		return e.stack[0].Message
+	}
+	return "unknown error"
 }
 
-func Error(err error) error {
-	if err == nil {
+func (e *Error) Unwrap() error {
+	return nil
+}
+
+func (e *Error) WithHuman(code types.HumanErrorCode, httpStatus int) error {
+	if e == nil {
 		return nil
 	}
 
+	if e.humanCode == "" {
+		e.humanCode = string(code)
+		e.httpStatus = httpStatus
+	}
+
 	_, file, line, _ := runtime.Caller(1)
+	e.stack = append(e.stack, StackFrame{
+		File:    filepath.Base(file),
+		Line:    line,
+		Message: string(code),
+		IsHuman: true,
+	})
 
-	var te *TraceError
-	if errors.As(err, &te) {
-		te.Trace = append(te.Trace, Frame{
-			File: filepath.Base(file),
-			Line: line,
-			Msg:  te.Root.Msg,
-		})
-
-		return te
-	}
-
-	return &TraceError{
-		Root: Frame{
-			File: filepath.Base(file),
-			Line: line,
-			Msg:  err.Error(),
-		},
-		Trace: []Frame{{
-			File: filepath.Base(file),
-			Line: line,
-			Msg:  err.Error(),
-		}},
-	}
+	return e
 }
 
-func Errorf(format string, args ...interface{}) error {
-	msg := fmt.Sprintf(format, args...)
-	_, file, line, _ := runtime.Caller(1)
-
-	return &TraceError{
-		Root: Frame{
-			File: filepath.Base(file),
-			Line: line,
-			Msg:  msg,
-		},
-		Trace: []Frame{{
-			File: filepath.Base(file),
-			Line: line,
-			Msg:  msg,
-		}},
+func (e *Error) GetHuman() (string, int) {
+	if e == nil {
+		return "", http.StatusInternalServerError
 	}
+	return e.humanCode, e.httpStatus
 }
 
-func Panic(r any) *TraceError {
-	msg := fmt.Sprintf("%v", r)
-	stack := debug.Stack()
+func (e *Error) GetFirstMessage() string {
+	if e == nil || len(e.stack) == 0 {
+		return ""
+	}
+	return e.stack[0].Message
+}
 
-	lines := bytes.Split(stack, []byte("\n"))
-	trace := make([]Frame, 0, len(lines)/2)
-
-	for i := 0; i < len(lines)-1; i++ {
-		line := string(lines[i])
-		if !strings.HasPrefix(line, "\t") {
-			continue
-		}
-
-		line = strings.TrimSpace(line)
-		parts := strings.Split(line, ":")
-		if len(parts) < 2 {
-			continue
-		}
-
-		file := filepath.Base(parts[0])
-		lineNumStr := strings.Split(parts[1], " ")[0]
-		lineNum, _ := strconv.Atoi(lineNumStr)
-
-		trace = append(trace, Frame{
-			File: file,
-			Line: lineNum,
-			Msg:  msg,
-		})
+func (e *Error) ToJSON() string {
+	if e == nil {
+		return "{}"
 	}
 
-	root := Frame{}
-	if len(trace) > 0 {
-		root = trace[0]
+	data := map[string]interface{}{
+		"human_code":  e.humanCode,
+		"http_status": e.httpStatus,
+		"root_cause":  e.GetFirstMessage(),
+		"stack":       e.stack,
 	}
 
-	return &TraceError{
-		Root:  root,
-		Trace: trace,
-	}
+	b, _ := json.MarshalIndent(data, "", "  ")
+	return string(b)
 }

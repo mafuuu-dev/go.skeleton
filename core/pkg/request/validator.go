@@ -55,7 +55,7 @@ func (v *Validator) parse(c *fiber.Ctx, model any) error {
 	}
 
 	c.Status(http.StatusBadRequest)
-	return errorsx.Error(err)
+	return errorsx.Wrap(err, "Error parsing request body")
 }
 
 func (v *Validator) validation(c *fiber.Ctx, model any) bool {

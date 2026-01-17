@@ -12,7 +12,7 @@ import (
 func ConnectRedis(ctx context.Context, addr string) (*redis.Client, error) {
 	options, err := redis.ParseURL(addr)
 	if err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to parse redis dsn")
 	}
 
 	options.PoolSize = 100
@@ -23,7 +23,7 @@ func ConnectRedis(ctx context.Context, addr string) (*redis.Client, error) {
 
 	client := redis.NewClient(options)
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, errorsx.Error(err)
+		return nil, errorsx.Wrap(err, "Failed to ping redis")
 	}
 
 	return client, nil

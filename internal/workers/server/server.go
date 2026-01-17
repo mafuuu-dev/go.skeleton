@@ -31,7 +31,7 @@ func Start(scope *scope.Scope) {
 
 	go func() {
 		if err := app.Listen(":" + scope.Config.HTTPPort); err != nil {
-			scope.Log.Fatalf("Fiber server error: %v", errorsx.Error(err))
+			scope.Log.Fatal(errorsx.Wrap(err, "Fiber server error"))
 		}
 	}()
 
@@ -47,6 +47,6 @@ func stop(app *fiber.App, scope *scope.Scope) {
 	defer cancel()
 
 	if err := app.ShutdownWithContext(ctx); err != nil {
-		scope.Log.Errorf("Error during Fiber shutdown: %v", errorsx.Error(err))
+		scope.Log.Error(errorsx.Wrap(err, "Error during Fiber shutdown"))
 	}
 }

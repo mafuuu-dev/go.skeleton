@@ -53,7 +53,7 @@ func Auth(scope *scope.Scope, provider AuthProvider) fiber.Handler {
 			token := c.Locals("user").(*jwt.Token)
 			claims := token.Claims.(jwt.MapClaims)
 
-			c.Locals("user_id", claims["user_id"])
+			c.Locals("player_id", claims["user_id"])
 			c.Locals("account_id", claims["account_id"])
 			c.Locals("currency_code", claims["currency_code"])
 
